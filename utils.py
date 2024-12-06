@@ -11,7 +11,7 @@ from data import AntiReg
 import os
 import sys
 from torch import nn, optim, autograd
-import CustomDataset
+from CustomDataset import CustomDataset
 import os
 import torch
 from PIL import Image
@@ -31,10 +31,11 @@ from torchvision import datasets
 
 def return_model(flags):
     model_type = None
+    
     if flags.irm_type == "erm":
         model_type = "erm"
     elif flags.irm_type == "irmv1":
-        if flags.dataset == "CMNIST":
+        if flags.dataset == "CMNIST" or flags.dataset == "qwe":
             model_type="irmv1"
         elif flags.dataset == "ColoredObject":
             model_type="irmv1b"
@@ -43,7 +44,7 @@ def return_model(flags):
         else:
             raise("Please specify the irm model for this dataset!")
     elif flags.irm_type == "birm":
-        if flags.dataset == "CMNIST":
+        if flags.dataset == "CMNIST" or flags.dataset == "qwe":
             model_type="bayes_fullbatch"
         elif flags.dataset == "ColoredObject":
             model_type="bayes_variance"
@@ -58,7 +59,7 @@ def return_model(flags):
 
 
 def update_flags(flags):
-    if flags.dataset == "CMNIST":
+    if flags.dataset == "CMNIST" or flags.dataset == "qwe":
         pass
     elif flags.dataset == "ColoredObject":
         flags.data_num =12000
@@ -67,7 +68,7 @@ def update_flags(flags):
     else:
         pass
     if flags.irm_type == "birm":
-        if flags.dataset == "CMNIST":
+        if flags.dataset == "CMNIST" or flags.dataset == "qwe":
             if flags.data_num == "5000":
                 flags.prior_sd_coef =1350
             else:
@@ -170,7 +171,10 @@ def make_environment(images, labels, e):
     # colors = torch_xor(labels, torch_bernoulli(e, len(labels)))
     # Apply the color to the image by zeroing out the other color channel
     images = torch.stack([images, images], dim=1)
+    
+    # 广播有问题
     images[torch.tensor(range(len(images))), (1-colors).long(), :, :] *= 0
+    
     return {
       'images': (images.float() / 255.),
       'labels': labels[:, None],
@@ -251,22 +255,28 @@ def make_qwe_envs(flags):
     img_dir = "dataset/trafficlight_data_sample"  # 图片目录
     label_file = "dataset/trafficlight_data_sample/labels.txt"  # 标签文件路径
     transform = transforms.Compose([
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        transforms.Grayscale(num_output_channels=1),  # 转为灰度图，num_output_channels=1 使其为单通道
+        transforms.Resize((28, 28)),  # 如果需要调整大小
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485], std=[0.229])
     ])
-
 
     # 创建自定义数据集
     dataset = CustomDataset(img_dir=img_dir, label_file=label_file, transform=transform)
-
+    data_tensor, labels_tensor = dataset.get_data_labels()
+    
     # 计算数据集划分
     dataset_size = len(dataset)
+    # print("dataset_size",dataset_size)
     train_size = int(flags.data_num)
+    # print('train_size',train_size)
     val_size = dataset_size - train_size
 
     # 划分训练集和验证集
-    train_data, train_labels = dataset[:train_size]
-    val_data, val_labels = dataset[train_size:]
+    train_data = data_tensor[:train_size]  # 训练集图像
+    train_labels = labels_tensor[:train_size]  # 训练集标签
+    val_data = data_tensor[train_size:]  # 验证集图像
+    val_labels = labels_tensor[train_size:]  # 验证集标签
 
     # 随机打乱训练集数据
     rng_state = np.random.get_state()

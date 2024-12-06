@@ -1,21 +1,12 @@
-import os
 import torch
-from PIL import Image
-import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from torchvision import transforms
-
-import argparse
-import random
-import math
-import numpy as np
-import torch
+from PIL import Image
 import os
-import sys
-from torch import nn, optim, autograd
-from torchvision import datasets
 
-label_map = {'Red': -1, 'Green': 1, 'Yellow': 0}
+# 标签映射字典
+label_map = {'Red': 0, 'Green': 1}
+
 class CustomDataset(Dataset):
     def __init__(self, img_dir, label_file, transform=None):
         """
@@ -33,17 +24,23 @@ class CustomDataset(Dataset):
         
         # 假设标签文件格式：每行是图片的文件名和对应的标签
         self.img_labels = [(line.split()[0], label_map[line.split()[1]]) for line in lines]
+        
+        # 提取所有图片文件名和对应的标签
+        self.img_names = [x[0] for x in self.img_labels]
+        self.labels = torch.tensor([x[1] for x in self.img_labels], dtype=torch.long)  # 转为张量
 
     def __len__(self):
-        # 数据集大小
+        # 返回数据集的大小
         return len(self.img_labels)
 
     def __getitem__(self, idx):
-        img_name, label = self.img_labels[idx]
+        # 获取图片的路径和标签
+        img_name = self.img_names[idx]
+        label = self.labels[idx]
         img_path = os.path.join(self.img_dir, img_name)
         
         # 打开图像
-        image = Image.open(img_path).convert("RGB")  # 如果是灰度图像，可以去掉 .convert("RGB")
+        image = Image.open(img_path).convert("RGB")  # 转为RGB模式，如果是灰度图像可去掉 .convert("RGB")
         
         # 图像预处理
         if self.transform:
@@ -51,24 +48,20 @@ class CustomDataset(Dataset):
         
         return image, label
 
-# # 数据增强/预处理
-# transform = transforms.Compose([
-#     transforms.Resize((28, 28)),  # 假设图片大小调整为28x28，小一点训练快
-#     transforms.ToTensor(),        # 转换为Tensor
-#     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))  # 归一化，标准化处理
-# ])
+    def get_data_labels(self):
+        """
+        提供类似于 MNIST 的数据和标签张量
+        """
+        all_images = []
+        all_labels = []
 
-# # 创建数据集和数据加载器
-# img_dir = "dataset/trafficlight_data_sample"  # 图片目录
-# label_file = "dataset/trafficlight_data_sample/labels.txt"  # 标签文件路径
-# dataset = CustomDataset(img_dir=img_dir, label_file=label_file, transform=transform)
-# dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+        for idx in range(len(self)):
+            img, label = self[idx]
+            all_images.append(img)
+            all_labels.append(label)
 
+        # 转换为Tensor
+        data_tensor = torch.stack(all_images)
+        labels_tensor = torch.tensor(all_labels, dtype=torch.long)
 
-
-# mnist = datasets.MNIST('~/datasets/mnist', train=True, download=False) # download
-
-# # 遍历数据加载器中的数据
-# for images, labels in dataloader:
-#     print(images.size(), labels.size())
-
+        return data_tensor, labels_tensor

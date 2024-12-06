@@ -18,15 +18,18 @@ sys.path.append('dataset_scripts')
 # utils.py
 from utils import concat_envs,eval_acc_class,eval_acc_reg,mean_nll_class,mean_accuracy_class,mean_nll_reg,mean_accuracy_reg,pretty_print, return_model
 from utils import CMNIST_LYDP
-from utils import CIFAR_LYPD, COCOcolor_LYPD
+from utils import CIFAR_LYPD, COCOcolor_LYPD,QWE_LYDP
 from utils import mean_nll_multi_class,eval_acc_multi_class,mean_accuracy_multi_class
+import warnings
 
+# 忽略所有警告
+warnings.filterwarnings("ignore")
 # 注入参数
 parser = argparse.ArgumentParser(description='Colored MNIST')
 parser.add_argument('--envs_num', type=int, default=2)
 parser.add_argument('--batch_size', type=int, default=1024)
 parser.add_argument('--seed', type=int, default=0)
-parser.add_argument('--dataset', type=str, default="CMNIST", choices=["CifarMnist","ColoredObject", "CMNIST"])
+parser.add_argument('--dataset', type=str, default="CMNIST", choices=["CifarMnist","ColoredObject", "CMNIST","qwe"])
 parser.add_argument('--opt', type=str, default="adam", choices=["adam", "sgd"])
 parser.add_argument('--l2_regularizer_weight', type=float,default=0.001)
 parser.add_argument('--print_every', type=int,default=100)
